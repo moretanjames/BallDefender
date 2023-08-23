@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -39,7 +40,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import kotlinx.coroutines.delay
 import yt.tjd.composegame.ui.theme.ComposeGameTheme
 import kotlin.random.Random
 
@@ -170,8 +170,8 @@ fun Game(
     val visiblePaddleWidth = 80.dp
     val visiblePaddleHeight = 20.dp
     val paddleVerticalOffset = 20.dp
-    val maxBallXVelocity = 50f
-    val maxBallYVelocity = 65f
+    val maxBallXVelocity = 5f
+    val maxBallYVelocity = 6f
     var topPaddleHorizontalOffset by remember(gameInProgress) { mutableStateOf((maxWidth / 2) - (visiblePaddleWidth / 2)) }
     var bottomPaddleHorizontalOffset by remember(gameInProgress) { mutableStateOf((maxWidth / 2) - (visiblePaddleWidth / 2)) }
 
@@ -182,62 +182,58 @@ fun Game(
     var yPosBall by remember(gameInProgress) { mutableStateOf(maxHeight / 2) }
 
     LaunchedEffect(xVelocity, yVelocity, gameInProgress, maxWidth) {
-      val frameCalculationDelay = (1000f / 60f).toLong()
-
-      var lastCalcTime = System.currentTimeMillis()
 
       val aiVelocity = maxBallXVelocity / 2f
+      var lastCalcTime = withFrameMillis { it }
+      while (gameInProgress) {
+        withFrameMillis {
+          val deltaTime = it - lastCalcTime
 
-      while (gameInProgress) { // Game Loop
+          xPosBall += with(density) { (xVelocity * deltaTime).toDp() }
+          yPosBall += with(density) { (yVelocity * deltaTime).toDp() }
 
-        val deltaTime = System.currentTimeMillis() - lastCalcTime
-        val deltaTimeMultiplier = deltaTime / frameCalculationDelay
+          if (aiEnabled) {
+            topPaddleHorizontalOffset += with(density) { ((if (xPosBall > topPaddleHorizontalOffset + (visiblePaddleWidth / 2)) aiVelocity else -aiVelocity) * deltaTime).toDp() }
+          }
 
-        xPosBall += with(density) { (xVelocity * deltaTimeMultiplier).toDp() }
-        yPosBall += with(density) { (yVelocity * deltaTimeMultiplier).toDp() }
+          if ( // top player
+            yPosBall <= paddleVerticalOffset + visiblePaddleHeight // Correct y
+            && (xPosBall >= topPaddleHorizontalOffset - (ballRadius * 2) && xPosBall <= topPaddleHorizontalOffset + visiblePaddleWidth) // correct x
+            && yVelocity < 0 // correct direction / only do it once
+          ) {
+            yVelocity *= -1
+            val edgeOfPaddle = topPaddleHorizontalOffset
+            val centerOfPaddle = edgeOfPaddle + (visiblePaddleWidth / 2)
+            val centerOfBall = xPosBall + ballRadius
+            val ballCenterPosRelativeToCenterOfPaddle = centerOfBall - centerOfPaddle
+            val ballHeightOnPaddleRatio = ballCenterPosRelativeToCenterOfPaddle / ((visiblePaddleWidth / 2) + (ballRadius * 2))
+            xVelocity = (ballHeightOnPaddleRatio * maxBallXVelocity).coerceIn(-maxBallXVelocity, maxBallXVelocity)
+          } else if ( // Bottom player
+            yPosBall >= maxHeight - paddleVerticalOffset - visiblePaddleHeight - (ballRadius * 2) // Correct y
+            && (xPosBall >= bottomPaddleHorizontalOffset - (ballRadius * 2) && xPosBall <= bottomPaddleHorizontalOffset + visiblePaddleWidth) // correct x
+            && yVelocity > 0 // correct direction / only do it once
+          ) {
+            yVelocity *= -1
+            val edgeOfPaddle = bottomPaddleHorizontalOffset
+            val centerOfPaddle = edgeOfPaddle + (visiblePaddleWidth / 2)
+            val centerOfBall = xPosBall + ballRadius
+            val ballCenterPosRelativeToCenterOfPaddle = centerOfBall - centerOfPaddle
+            val ballHeightOnPaddleRatio = ballCenterPosRelativeToCenterOfPaddle / ((visiblePaddleWidth / 2) + (ballRadius * 2))
+            xVelocity = (ballHeightOnPaddleRatio * maxBallXVelocity).coerceIn(-maxBallXVelocity, maxBallXVelocity)
+          } else if (yPosBall >= maxHeight - (ballRadius * 2) && yVelocity > 0) {
+            user1Lost()
+          } else if (yPosBall <= 0.dp && yVelocity < 0) {
+            user2Lost()
+          }
 
-        if (aiEnabled) {
-          topPaddleHorizontalOffset += with(density) { ((if (xPosBall > topPaddleHorizontalOffset + (visiblePaddleWidth / 2)) aiVelocity else -aiVelocity) * deltaTimeMultiplier).toDp() }
+          if (xPosBall >= maxWidth - (ballRadius * 2) && xVelocity > 0) {
+            xVelocity *= -1f
+          } else if (xPosBall <= 0.dp && xVelocity < 0) {
+            xVelocity *= -1f
+          }
+
+          lastCalcTime = it
         }
-
-        if ( // top player
-          yPosBall <= paddleVerticalOffset + visiblePaddleHeight // Correct y
-          && (xPosBall >= topPaddleHorizontalOffset - (ballRadius * 2) && xPosBall <= topPaddleHorizontalOffset + visiblePaddleWidth) // correct x
-          && yVelocity < 0 // correct direction / only do it once
-        ) {
-          yVelocity *= -1
-          val edgeOfPaddle = topPaddleHorizontalOffset
-          val centerOfPaddle = edgeOfPaddle + (visiblePaddleWidth / 2)
-          val centerOfBall = xPosBall + ballRadius
-          val ballCenterPosRelativeToCenterOfPaddle = centerOfBall - centerOfPaddle
-          val ballHeightOnPaddleRatio = ballCenterPosRelativeToCenterOfPaddle / ((visiblePaddleWidth / 2) + (ballRadius * 2))
-          xVelocity = (ballHeightOnPaddleRatio * maxBallXVelocity).coerceIn(-maxBallXVelocity, maxBallXVelocity)
-        } else if ( // Bottom player
-          yPosBall >= maxHeight - paddleVerticalOffset - visiblePaddleHeight - (ballRadius * 2) // Correct y
-          && (xPosBall >= bottomPaddleHorizontalOffset - (ballRadius * 2) && xPosBall <= bottomPaddleHorizontalOffset + visiblePaddleWidth) // correct x
-          && yVelocity > 0 // correct direction / only do it once
-        ) {
-          yVelocity *= -1
-          val edgeOfPaddle = bottomPaddleHorizontalOffset
-          val centerOfPaddle = edgeOfPaddle + (visiblePaddleWidth / 2)
-          val centerOfBall = xPosBall + ballRadius
-          val ballCenterPosRelativeToCenterOfPaddle = centerOfBall - centerOfPaddle
-          val ballHeightOnPaddleRatio = ballCenterPosRelativeToCenterOfPaddle / ((visiblePaddleWidth / 2) + (ballRadius * 2))
-          xVelocity = (ballHeightOnPaddleRatio * maxBallXVelocity).coerceIn(-maxBallXVelocity, maxBallXVelocity)
-        } else if (yPosBall >= maxHeight - (ballRadius * 2) && yVelocity > 0) {
-          user1Lost()
-        } else if (yPosBall <= 0.dp && yVelocity < 0) {
-          user2Lost()
-        }
-
-        if (xPosBall >= maxWidth - (ballRadius * 2) && xVelocity > 0) {
-          xVelocity *= -1f
-        } else if (xPosBall <= 0.dp && xVelocity < 0) {
-          xVelocity *= -1f
-        }
-
-        lastCalcTime = System.currentTimeMillis()
-        delay(frameCalculationDelay)
       }
     }
 

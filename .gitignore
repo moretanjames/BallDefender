@@ -1,15 +1,38 @@
+# Temp files
+*~
+tmp/
+
+# IDEA
+*.ipr
 *.iml
+*.iws
+/.idea/
+out/
+
+# Maven
+target/
+
+#gradle
 .gradle
+build
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+local.properties
 /build
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# Android
+classes/
+bin/
+gen/
+gen-external-apklibs/
+libs/
+captures/
+
+# OS
+.DS_Store
+
+# Misc
+*.orig
+*.hprof
