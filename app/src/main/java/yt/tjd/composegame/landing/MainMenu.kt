@@ -1,17 +1,25 @@
 package yt.tjd.composegame.landing
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.StartOffsetType
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 
@@ -36,7 +46,7 @@ fun NavGraphBuilder.addMainMenu(startGame: (numPlayers: Int) -> Unit) {
 @Composable
 fun MainMenu(startGame: (numPlayers: Int) -> Unit) {
   Surface(color = Color.Black) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
 
       val infiniteRepeatable = rememberInfiniteTransition(label = "infinite")
 
@@ -47,6 +57,42 @@ fun MainMenu(startGame: (numPlayers: Int) -> Unit) {
           animation = tween(10000, easing = LinearEasing)
         ),
         label = "angle"
+      )
+
+      val density = LocalDensity.current
+
+      val transition = rememberInfiniteTransition("transition")
+
+      val offsetX by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = with(density) { (maxWidth - 20.dp).toPx() },
+        animationSpec = infiniteRepeatable(
+          tween(3000, easing = LinearEasing),
+          repeatMode = RepeatMode.Reverse,
+          initialStartOffset = StartOffset(1500, offsetType = StartOffsetType.FastForward)
+        ),
+        label = "offsetX"
+      )
+
+      val offsetY by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = with(density) { (maxHeight - 20.dp).toPx() },
+        animationSpec = infiniteRepeatable(
+          tween(3000, easing = LinearEasing),
+          repeatMode = RepeatMode.Reverse
+        ),
+        label = "offsetX"
+      )
+
+      Box(
+        modifier = Modifier
+          .align(Alignment.TopStart)
+          .offset(
+            x = with(density) { offsetX.toDp() },
+            y = with(density) { offsetY.toDp() }
+          )
+          .size(20.dp)
+          .background(color = Color.White.copy(alpha = 0.5f), shape = CircleShape)
       )
 
       Canvas(
